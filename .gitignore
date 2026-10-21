@@ -1,0 +1,16 @@
+.env
+*.log
+
+# Java
+backend/target/
+
+# Node
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
