@@ -1,0 +1,16 @@
+spring:
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    secret: test-only-signing-key-0123456789abcdef0123456789abcdef
+    expiration-minutes: 60
+  booking:
+    slot-interval-minutes: 15
+  cors:
+    allowed-origins: http://localhost:5173

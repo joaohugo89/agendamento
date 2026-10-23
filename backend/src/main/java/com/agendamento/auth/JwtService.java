@@ -23,12 +23,30 @@ public class JwtService {
     private static final String CLAIM_BUSINESS_ID = "bid";
     private static final String CLAIM_EMAIL = "email";
 
+    private static final int MIN_SECRET_BYTES = 32;
+
     private final SecretKey key;
     private final Duration expiration;
 
     public JwtService(AppProperties properties) {
-        this.key = Keys.hmacShaKeyFor(properties.jwt().secret().getBytes(StandardCharsets.UTF_8));
+        this.key = Keys.hmacShaKeyFor(requireUsableSecret(properties.jwt().secret()));
         this.expiration = Duration.ofMinutes(properties.jwt().expirationMinutes());
+    }
+
+    /** Fail fast rather than sign tokens with a guessable key. */
+    private static byte[] requireUsableSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("JWT_SECRET is not configured.");
+        }
+        byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                    "JWT_SECRET must be at least " + MIN_SECRET_BYTES + " bytes long.");
+        }
+        if (secret.toLowerCase().contains("change-me")) {
+            throw new IllegalStateException("JWT_SECRET still holds the placeholder value.");
+        }
+        return bytes;
     }
 
     public String generateToken(User user) {
