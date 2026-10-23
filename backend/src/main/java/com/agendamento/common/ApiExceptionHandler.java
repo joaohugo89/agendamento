@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -59,6 +60,16 @@ public class ApiExceptionHandler {
                     "Este horario acabou de ser reservado por outra pessoa. Escolha outro horario.");
         }
         return problem(HttpStatus.CONFLICT, "Conflito", "A operacao viola uma regra de integridade dos dados.");
+    }
+
+    /**
+     * A lost race on the same slot can also surface as a lock failure or a deadlock victim.
+     * For the customer the meaning is the same: the slot is gone, pick another one.
+     */
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ProblemDetail handleLockFailure(PessimisticLockingFailureException ex) {
+        return problem(HttpStatus.CONFLICT, "Horario indisponivel",
+                "Nao foi possivel reservar este horario. Escolha outro horario.");
     }
 
     private boolean isExclusionViolation(Throwable error) {
