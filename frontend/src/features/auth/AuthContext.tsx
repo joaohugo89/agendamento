@@ -1,0 +1,103 @@
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
+
+import { clearToken, readToken, request, storeToken } from '../../lib/api'
+import type { AuthResponse } from '../../types/api'
+
+const SESSION_STORAGE_KEY = 'agendamento.session'
+
+export interface Session {
+  userName: string
+  businessName: string
+  businessSlug: string
+}
+
+interface AuthContextValue {
+  session: Session | null
+  isAuthenticated: boolean
+  login: (email: string, password: string) => Promise<void>
+  register: (input: RegisterInput) => Promise<void>
+  logout: () => void
+}
+
+export interface RegisterInput {
+  ownerName: string
+  businessName: string
+  email: string
+  password: string
+}
+
+const AuthContext = createContext<AuthContextValue | null>(null)
+
+function readStoredSession(): Session | null {
+  if (!readToken()) {
+    return null
+  }
+  const raw = localStorage.getItem(SESSION_STORAGE_KEY)
+  if (!raw) {
+    return null
+  }
+  try {
+    return JSON.parse(raw) as Session
+  } catch {
+    return null
+  }
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(readStoredSession)
+
+  const persist = useCallback((response: AuthResponse) => {
+    const next: Session = {
+      userName: response.userName,
+      businessName: response.businessName,
+      businessSlug: response.businessSlug,
+    }
+    storeToken(response.token)
+    localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(next))
+    setSession(next)
+  }, [])
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const response = await request<AuthResponse>('/api/auth/login', {
+        method: 'POST',
+        body: { email, password },
+      })
+      persist(response)
+    },
+    [persist],
+  )
+
+  const register = useCallback(
+    async (input: RegisterInput) => {
+      const response = await request<AuthResponse>('/api/auth/register', {
+        method: 'POST',
+        body: input,
+      })
+      persist(response)
+    },
+    [persist],
+  )
+
+  const logout = useCallback(() => {
+    clearToken()
+    localStorage.removeItem(SESSION_STORAGE_KEY)
+    setSession(null)
+  }, [])
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ session, isAuthenticated: session !== null, login, register, logout }),
+    [session, login, register, logout],
+  )
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+}
+
+export function useAuth(): AuthContextValue {
+  const context = useContext(AuthContext)
+  if (!context) {
+    throw new Error('useAuth precisa estar dentro de AuthProvider')
+  }
+  return context
+}
