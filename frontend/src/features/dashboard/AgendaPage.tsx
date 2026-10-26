@@ -78,7 +78,7 @@ export function AgendaPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold text-slate-900">Agenda</h1>
-          <p className="text-sm capitalize text-slate-500">{formatLongDate(date)}</p>
+          <p className="text-sm text-slate-500 first-letter:uppercase">{formatLongDate(date)}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => shiftDay(-1)} aria-label="Dia anterior">

@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 import type { ReactNode } from 'react'
 
 import { clearToken, readToken, request, storeToken } from '../../lib/api'
+import { queryClient } from '../../lib/queryClient'
 import type { AuthResponse } from '../../types/api'
 
 const SESSION_STORAGE_KEY = 'agendamento.session'
@@ -48,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(readStoredSession)
 
   const persist = useCallback((response: AuthResponse) => {
+    // Cached rows belong to the previous tenant: drop them before the new session starts.
+    queryClient.clear()
     const next: Session = {
       userName: response.userName,
       businessName: response.businessName,
@@ -81,6 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(() => {
+    queryClient.clear()
     clearToken()
     localStorage.removeItem(SESSION_STORAGE_KEY)
     setSession(null)
