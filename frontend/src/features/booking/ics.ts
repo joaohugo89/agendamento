@@ -4,8 +4,15 @@ function toIcsTimestamp(iso: string): string {
   return `${new Date(iso).toISOString().replace(/[-:]/g, '').split('.')[0]}Z`
 }
 
+/**
+ * RFC 5545 escaping. Every kind of line break becomes a literal \n and other control
+ * characters are dropped, so a value can never break out of its own property line.
+ */
 function escapeText(value: string): string {
-  return value.replace(/[\\;,]/g, (match) => `\\${match}`).replace(/\n/g, '\\n')
+  return value
+    .replace(/[\\;,]/g, (match) => `\\${match}`)
+    .replace(/\r\n|\r|\n/g, '\\n')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
 }
 
 /** Built in the browser: the booking needs no server round trip to become a calendar entry. */
@@ -16,7 +23,7 @@ export function buildIcsFile(booking: BookingConfirmationResponse): string {
     'PRODID:-//agendamento//booking//PT-BR',
     'CALSCALE:GREGORIAN',
     'BEGIN:VEVENT',
-    `UID:${booking.id}`,
+    `UID:${escapeText(booking.id)}`,
     `DTSTAMP:${toIcsTimestamp(new Date().toISOString())}`,
     `DTSTART:${toIcsTimestamp(booking.startsAt)}`,
     `DTEND:${toIcsTimestamp(booking.endsAt)}`,
