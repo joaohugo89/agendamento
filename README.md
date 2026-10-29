@@ -169,7 +169,7 @@ cd backend && mvn test      # exige Docker em execucao (Testcontainers)
 cd frontend && npm test
 ```
 
-Backend (37 testes):
+Backend (40 testes):
 
 - **motor de disponibilidade** — dia fechado, varios periodos, servico que nao cabe antes do
   fechamento, agendamento existente, agendamento cancelado liberando o horario, bloqueio cobrindo o
@@ -179,6 +179,8 @@ Backend (37 testes):
   antes e depois de salvar um turno;
 - **double booking** — teste de integracao com PostgreSQL real via Testcontainers, disparando oito
   requisicoes concorrentes para o mesmo horario: exatamente uma recebe 201 e as demais 409;
+- **agenda do dia** — o que o dia lista, o filtro por profissional e a transicao de status, que
+  sai de `CONFIRMED` uma vez so;
 - **isolamento entre tenants** — o estabelecimento A recebe 404 ao ler, alterar ou remover recursos
   do B, e so enxerga as proprias linhas nas listagens;
 - **autenticacao** — rotas protegidas respondem 401 sem token e com token invalido.

@@ -11,6 +11,7 @@ const publicPath = (slug: string) => `/api/public/businesses/${encodeURIComponen
 export const bookingKeys = {
   business: (slug: string) => ['public-business', slug] as const,
   professionals: (slug: string, serviceId: string) => ['public-professionals', slug, serviceId] as const,
+  slotsRoot: ['public-slots'] as const,
   slots: (slug: string, serviceId: string, professionalId: string, date: string) =>
     ['public-slots', slug, serviceId, professionalId, date] as const,
 }

@@ -3,6 +3,7 @@ package com.agendamento.auth;
 import java.time.DayOfWeek;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -55,7 +56,7 @@ public class AuthService {
         businessHourRepository.saveAll(defaultOpeningHours(business));
 
         User user = userRepository.save(new User(business.getId(), request.ownerName(),
-                request.email().toLowerCase(), passwordEncoder.encode(request.password())));
+                request.email().toLowerCase(Locale.ROOT), passwordEncoder.encode(request.password())));
 
         return toResponse(user, business);
     }

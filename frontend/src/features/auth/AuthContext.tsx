@@ -1,7 +1,7 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { clearToken, readToken, request, storeToken } from '../../lib/api'
+import { clearToken, readToken, request, SESSION_EXPIRED_EVENT, storeToken } from '../../lib/api'
 import { queryClient } from '../../lib/queryClient'
 import type { AuthResponse } from '../../types/api'
 
@@ -89,6 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(SESSION_STORAGE_KEY)
     setSession(null)
   }, [])
+
+  // The API drops the token when it is rejected; here the session follows it, and RequireAuth
+  // sends the owner back to the login screen instead of leaving a panel that only errors.
+  useEffect(() => {
+    window.addEventListener(SESSION_EXPIRED_EVENT, logout)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, logout)
+  }, [logout])
 
   const value = useMemo<AuthContextValue>(
     () => ({ session, isAuthenticated: session !== null, login, register, logout }),

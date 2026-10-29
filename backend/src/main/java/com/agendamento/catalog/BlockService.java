@@ -27,7 +27,7 @@ public class BlockService {
     @Transactional(readOnly = true)
     public List<BlockResponse> list(UUID businessId) {
         Map<UUID, String> names = new HashMap<>();
-        professionalRepository.findAllWithServices(businessId)
+        professionalRepository.findByBusinessIdOrderByNameAsc(businessId)
                 .forEach(professional -> names.put(professional.getId(), professional.getName()));
         return repository.findByBusinessIdOrderByStartsAtDesc(businessId).stream()
                 .map(block -> BlockResponse.from(block, names.get(block.getProfessionalId())))
@@ -36,19 +36,19 @@ public class BlockService {
 
     @Transactional
     public BlockResponse create(UUID businessId, BlockRequest request) {
-        validate(businessId, request);
+        String professionalName = validate(businessId, request);
         Block block = new Block(businessId, request.professionalId(), request.startsAt(),
                 request.endsAt(), request.reason());
-        return BlockResponse.from(repository.save(block), professionalName(businessId, block.getProfessionalId()));
+        return BlockResponse.from(repository.save(block), professionalName);
     }
 
     @Transactional
     public BlockResponse update(UUID businessId, UUID id, BlockRequest request) {
-        validate(businessId, request);
+        String professionalName = validate(businessId, request);
         Block block = repository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new NotFoundException("Bloqueio nao encontrado."));
         block.update(request.professionalId(), request.startsAt(), request.endsAt(), request.reason());
-        return BlockResponse.from(repository.save(block), professionalName(businessId, block.getProfessionalId()));
+        return BlockResponse.from(repository.save(block), professionalName);
     }
 
     @Transactional
@@ -58,22 +58,16 @@ public class BlockService {
         repository.delete(block);
     }
 
-    private void validate(UUID businessId, BlockRequest request) {
+    /** Checks the request and returns the professional name, or null for a business-wide block. */
+    private String validate(UUID businessId, BlockRequest request) {
         if (!request.startsAt().isBefore(request.endsAt())) {
             throw new BusinessRuleException("O inicio do bloqueio deve ser antes do fim.");
         }
-        if (request.professionalId() != null) {
-            professionalRepository.findByIdAndBusinessId(request.professionalId(), businessId)
-                    .orElseThrow(() -> new NotFoundException("Profissional nao encontrado."));
-        }
-    }
-
-    private String professionalName(UUID businessId, UUID professionalId) {
-        if (professionalId == null) {
+        if (request.professionalId() == null) {
             return null;
         }
-        return professionalRepository.findByIdAndBusinessId(professionalId, businessId)
+        return professionalRepository.findByIdAndBusinessId(request.professionalId(), businessId)
                 .map(Professional::getName)
-                .orElse(null);
+                .orElseThrow(() -> new NotFoundException("Profissional nao encontrado."));
     }
 }

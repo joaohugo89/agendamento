@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Date;
+import java.util.Locale;
 import java.util.UUID;
 
 import javax.crypto.SecretKey;
@@ -43,7 +44,7 @@ public class JwtService {
             throw new IllegalStateException(
                     "JWT_SECRET must be at least " + MIN_SECRET_BYTES + " bytes long.");
         }
-        if (secret.toLowerCase().contains("change-me")) {
+        if (secret.toLowerCase(Locale.ROOT).contains("change-me")) {
             throw new IllegalStateException("JWT_SECRET still holds the placeholder value.");
         }
         return bytes;

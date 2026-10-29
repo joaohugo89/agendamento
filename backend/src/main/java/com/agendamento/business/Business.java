@@ -98,8 +98,4 @@ public class Business {
     public void setTimezone(String timezone) {
         this.timezone = timezone;
     }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
 }

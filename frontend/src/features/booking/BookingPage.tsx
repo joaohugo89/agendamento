@@ -78,7 +78,7 @@ export function BookingPage() {
       // Someone took the slot between choosing it and confirming: back to the time step.
       if (error instanceof ApiError && error.isSlotConflict) {
         notify(error.message, 'error')
-        void queryClient.invalidateQueries({ queryKey: ['public-slots'] })
+        void queryClient.invalidateQueries({ queryKey: bookingKeys.slotsRoot })
         setSelection((current) => ({ ...current, slot: undefined }))
         setStep('time')
         return
@@ -198,7 +198,13 @@ export function BookingPage() {
           slug={slug}
           serviceId={selection.service.id}
           onSelect={(professional) => {
-            setSelection((current) => ({ ...current, professional }))
+            // Another professional has another agenda: the day and the slot start over.
+            setSelection((current) => ({
+              ...current,
+              professional,
+              date: undefined,
+              slot: undefined,
+            }))
             setStep('date')
           }}
         />

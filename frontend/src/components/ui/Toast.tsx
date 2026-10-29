@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 type ToastTone = 'success' | 'error' | 'info'
@@ -25,13 +25,25 @@ const DISMISS_AFTER_MS = 4000
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
+  const timers = useRef<number[]>([])
 
   const notify = useCallback((message: string, tone: ToastTone = 'info') => {
     const id = Date.now() + Math.random()
     setToasts((current) => [...current, { id, message, tone }])
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((toast) => toast.id !== id))
-    }, DISMISS_AFTER_MS)
+    timers.current.push(
+      window.setTimeout(() => {
+        setToasts((current) => current.filter((toast) => toast.id !== id))
+      }, DISMISS_AFTER_MS),
+    )
+  }, [])
+
+  // Nothing should fire into an unmounted provider.
+  useEffect(() => {
+    const pending = timers
+    return () => {
+      pending.current.forEach(window.clearTimeout)
+      pending.current = []
+    }
   }, [])
 
   const value = useMemo(() => ({ notify }), [notify])

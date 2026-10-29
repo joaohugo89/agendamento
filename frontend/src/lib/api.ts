@@ -1,6 +1,9 @@
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8080'
 const TOKEN_STORAGE_KEY = 'agendamento.token'
 
+/** Fired when the token is rejected, so the app can drop a session that is no longer valid. */
+export const SESSION_EXPIRED_EVENT = 'agendamento:session-expired'
+
 /** Mirrors the ProblemDetail the backend returns on every error. */
 export interface ProblemDetail {
   title?: string
@@ -74,15 +77,29 @@ export async function request<TResponse>(path: string, options: RequestOptions =
     body: body === undefined ? undefined : JSON.stringify(body),
   })
 
+  // An expired or revoked token: there is no point keeping the session around.
+  if (response.status === 401 && authenticated) {
+    clearToken()
+    window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+  }
+
   if (response.status === 204) {
     return undefined as TResponse
   }
 
   const text = await response.text()
-  const payload = text.length > 0 ? (JSON.parse(text) as unknown) : null
+  // A gateway or a proxy can answer with something that is not a ProblemDetail at all.
+  let payload: unknown = null
+  if (text.length > 0) {
+    try {
+      payload = JSON.parse(text)
+    } catch {
+      payload = null
+    }
+  }
 
   if (!response.ok) {
-    throw new ApiError(response.status, (payload ?? {}) as ProblemDetail)
+    throw new ApiError(response.status, (payload ?? { title: `Erro ${response.status}` }) as ProblemDetail)
   }
 
   return payload as TResponse

@@ -45,6 +45,10 @@ export function downloadIcsFile(booking: BookingConfirmationResponse): void {
   const link = document.createElement('a')
   link.href = url
   link.download = 'agendamento.ics'
+  // Firefox only follows the click of an anchor that is in the document, and revoking the URL
+  // in the same tick can cancel a download that has not started yet.
+  document.body.appendChild(link)
   link.click()
-  URL.revokeObjectURL(url)
+  document.body.removeChild(link)
+  window.setTimeout(() => URL.revokeObjectURL(url), 0)
 }

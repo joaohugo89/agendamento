@@ -16,8 +16,4 @@ public enum AppointmentStatus {
     public boolean canTransitionTo(AppointmentStatus target) {
         return this == CONFIRMED && FROM_CONFIRMED.contains(target);
     }
-
-    public boolean blocksSlot() {
-        return this != CANCELLED;
-    }
 }

@@ -115,8 +115,4 @@ public class Appointment {
     public int getPriceCents() {
         return priceCents;
     }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
 }

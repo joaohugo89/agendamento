@@ -51,9 +51,11 @@ public class AppointmentService {
         Map<UUID, String> serviceNames = serviceNames(businessId);
         Map<UUID, String> professionalNames = professionalNames(businessId);
 
-        return repository.findForDay(businessId, dayStart, dayEnd).stream()
-                .filter(appointment -> professionalId == null
-                        || appointment.getProfessionalId().equals(professionalId))
+        List<Appointment> appointments = professionalId == null
+                ? repository.findForDay(businessId, dayStart, dayEnd)
+                : repository.findForDayAndProfessional(businessId, professionalId, dayStart, dayEnd);
+
+        return appointments.stream()
                 .map(appointment -> AppointmentResponse.from(appointment,
                         serviceNames.get(appointment.getServiceId()),
                         professionalNames.get(appointment.getProfessionalId()), zone))
@@ -62,21 +64,22 @@ public class AppointmentService {
 
     @Transactional
     public AppointmentResponse updateStatus(UUID businessId, UUID id, AppointmentStatus target) {
+        Business business = businessService.require(businessId);
         Appointment appointment = repository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new NotFoundException("Agendamento nao encontrado."));
         if (appointment.getStatus() == target) {
-            return toResponse(businessId, appointment);
+            return toResponse(business, appointment);
         }
         if (!appointment.getStatus().canTransitionTo(target)) {
             throw new BusinessRuleException("Nao e possivel mudar de "
                     + appointment.getStatus() + " para " + target + ".");
         }
         appointment.changeStatus(target);
-        return toResponse(businessId, repository.save(appointment));
+        return toResponse(business, repository.save(appointment));
     }
 
-    private AppointmentResponse toResponse(UUID businessId, Appointment appointment) {
-        Business business = businessService.require(businessId);
+    private AppointmentResponse toResponse(Business business, Appointment appointment) {
+        UUID businessId = business.getId();
         String serviceName = serviceRepository
                 .findByIdAndBusinessId(appointment.getServiceId(), businessId)
                 .map(ServiceOffering::getName)
@@ -97,7 +100,7 @@ public class AppointmentService {
 
     private Map<UUID, String> professionalNames(UUID businessId) {
         Map<UUID, String> names = new HashMap<>();
-        professionalRepository.findAllWithServices(businessId)
+        professionalRepository.findByBusinessIdOrderByNameAsc(businessId)
                 .forEach(professional -> names.put(professional.getId(), professional.getName()));
         return names;
     }

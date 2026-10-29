@@ -21,6 +21,9 @@ public interface ProfessionalRepository extends JpaRepository<Professional, UUID
 
     Optional<Professional> findByIdAndBusinessId(UUID id, UUID businessId);
 
+    /** Without the services: the agenda and the block list only need the names. */
+    List<Professional> findByBusinessIdOrderByNameAsc(UUID businessId);
+
     @Query("select p from Professional p join p.services s "
             + "where p.businessId = :businessId and s.id = :serviceId and p.active = true "
             + "order by p.name asc")
