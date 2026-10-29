@@ -27,6 +27,8 @@ import com.agendamento.business.BusinessRepository;
 import com.agendamento.catalog.BusinessHour;
 import com.agendamento.catalog.BusinessHourRepository;
 import com.agendamento.catalog.Professional;
+import com.agendamento.catalog.ProfessionalHour;
+import com.agendamento.catalog.ProfessionalHourRepository;
 import com.agendamento.catalog.ProfessionalRepository;
 import com.agendamento.catalog.ServiceOffering;
 import com.agendamento.catalog.ServiceOfferingRepository;
@@ -49,17 +51,20 @@ public class DemoDataSeeder {
     @Bean
     ApplicationRunner seedDemoData(BusinessRepository businessRepository, UserRepository userRepository,
             BusinessHourRepository businessHourRepository, ServiceOfferingRepository serviceRepository,
-            ProfessionalRepository professionalRepository, AppointmentRepository appointmentRepository,
-            PasswordEncoder passwordEncoder) {
+            ProfessionalRepository professionalRepository,
+            ProfessionalHourRepository professionalHourRepository,
+            AppointmentRepository appointmentRepository, PasswordEncoder passwordEncoder) {
         return args -> seed(businessRepository, userRepository, businessHourRepository,
-                serviceRepository, professionalRepository, appointmentRepository, passwordEncoder);
+                serviceRepository, professionalRepository, professionalHourRepository,
+                appointmentRepository, passwordEncoder);
     }
 
     @Transactional
     void seed(BusinessRepository businessRepository, UserRepository userRepository,
             BusinessHourRepository businessHourRepository, ServiceOfferingRepository serviceRepository,
-            ProfessionalRepository professionalRepository, AppointmentRepository appointmentRepository,
-            PasswordEncoder passwordEncoder) {
+            ProfessionalRepository professionalRepository,
+            ProfessionalHourRepository professionalHourRepository,
+            AppointmentRepository appointmentRepository, PasswordEncoder passwordEncoder) {
         if (businessRepository.existsBySlug(SLUG)) {
             log.info("Demo data already present, skipping seed.");
             return;
@@ -100,6 +105,18 @@ public class DemoDataSeeder {
         Professional carlos = new Professional(business.getId(), "Carlos", true);
         carlos.update("Carlos", true, Set.of(haircut, combo));
         carlos = professionalRepository.save(carlos);
+
+        // Joao has no schedule of his own, so he works whenever the shop is open. Carlos starts
+        // later from Tuesday to Friday, is off on Monday and leaves early on Saturday.
+        for (DayOfWeek day : List.of(DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY,
+                DayOfWeek.FRIDAY)) {
+            professionalHourRepository.save(new ProfessionalHour(business.getId(), carlos.getId(),
+                    day, LocalTime.of(10, 0), LocalTime.of(12, 0)));
+            professionalHourRepository.save(new ProfessionalHour(business.getId(), carlos.getId(),
+                    day, LocalTime.of(13, 0), LocalTime.of(19, 0)));
+        }
+        professionalHourRepository.save(new ProfessionalHour(business.getId(), carlos.getId(),
+                DayOfWeek.SATURDAY, LocalTime.of(9, 0), LocalTime.of(14, 0)));
 
         seedAppointments(business, appointmentRepository, joao, carlos, haircut, beard, combo);
 

@@ -33,7 +33,11 @@ const business = {
   })),
 }
 
-const professionals = [{ id: 'professional-1', name: 'Joao' }]
+const defaultProfessionals = [{ id: 'professional-1', name: 'Joao', workingDays: [] as number[] }]
+
+/** Overridden by a single test; reset before each one, so the mock stays shared and honest. */
+let professionals = defaultProfessionals
+let openingHours = business.openingHours
 const slots = [{ startsAt: '2030-06-10T12:00:00Z', time: '09:00' }]
 
 const confirmation = {
@@ -80,7 +84,7 @@ function mockFetch() {
     if (url.includes('/professionals')) {
       return jsonResponse(professionals)
     }
-    return jsonResponse(business)
+    return jsonResponse({ ...business, openingHours })
   })
 }
 
@@ -126,6 +130,8 @@ describe('BookingPage', () => {
   beforeEach(() => {
     postedBodies = []
     conflictOnFirstPost = false
+    professionals = defaultProfessionals
+    openingHours = business.openingHours
     vi.stubGlobal('fetch', mockFetch())
   })
 
@@ -170,6 +176,26 @@ describe('BookingPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Escolha o horario' })).toBeInTheDocument()
     expect(screen.getByText('Este horario acabou de ser reservado.')).toBeInTheDocument()
+  })
+
+  it('offers no date when the professional does not work on any open weekday', async () => {
+    // The shop opens on Mondays only and this professional works on Tuesdays.
+    openingHours = [{ id: 'hour-1', dayOfWeek: 1, startTime: '09:00', endTime: '18:00' }]
+    professionals = [{ id: 'professional-1', name: 'Joao', workingDays: [2] }]
+    const user = userEvent.setup()
+    renderBookingPage()
+
+    await user.click(await screen.findByRole('button', { name: 'Agendar agora' }))
+    await user.click(await screen.findByRole('button', { name: /Corte/ }))
+    await user.click(await screen.findByRole('button', { name: 'Joao' }))
+
+    const calendar = await screen.findByText(/Dias sem atendimento/)
+    const dayButtons = within(calendar.parentElement as HTMLElement)
+      .getAllByRole('button')
+      .filter((button) => /^\d+$/.test(button.textContent ?? ''))
+
+    expect(dayButtons.length).toBeGreaterThan(0)
+    expect(dayButtons.every((button) => button.hasAttribute('disabled'))).toBe(true)
   })
 
   it('does not advance while the customer form is invalid', async () => {

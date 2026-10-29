@@ -124,6 +124,13 @@ export function BookingPage() {
 
   const business = businessQuery.data
   const openWeekdays = new Set(business.openingHours.map((hour) => hour.dayOfWeek))
+  // A professional with a schedule of their own is only offered on the days they work; with no
+  // schedule of their own they follow the opening days.
+  const workingDays = selection.professional?.workingDays ?? []
+  const bookableWeekdays =
+    workingDays.length === 0
+      ? openWeekdays
+      : new Set(workingDays.filter((day) => openWeekdays.has(day)))
   const stepIndex = FLOW.indexOf(step)
 
   const confirmPayload =
@@ -199,7 +206,7 @@ export function BookingPage() {
 
       {step === 'date' && (
         <DateStep
-          openWeekdays={openWeekdays}
+          openWeekdays={bookableWeekdays}
           onSelect={(date) => {
             setSelection((current) => ({ ...current, date }))
             setStep('time')

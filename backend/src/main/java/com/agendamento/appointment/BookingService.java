@@ -3,7 +3,9 @@ package com.agendamento.appointment;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,8 @@ import com.agendamento.business.Business;
 import com.agendamento.business.BusinessService;
 import com.agendamento.business.dto.PublicBusinessResponse;
 import com.agendamento.catalog.Professional;
+import com.agendamento.catalog.ProfessionalHour;
+import com.agendamento.catalog.ProfessionalHourRepository;
 import com.agendamento.catalog.ProfessionalRepository;
 import com.agendamento.catalog.ServiceOffering;
 import com.agendamento.catalog.ServiceOfferingRepository;
@@ -33,18 +37,22 @@ public class BookingService {
     private final BusinessService businessService;
     private final ServiceOfferingRepository serviceRepository;
     private final ProfessionalRepository professionalRepository;
+    private final ProfessionalHourRepository professionalHourRepository;
     private final BusinessHourRepository businessHourRepository;
     private final AppointmentRepository appointmentRepository;
     private final AvailabilityService availabilityService;
     private final BookingLock bookingLock;
 
     public BookingService(BusinessService businessService, ServiceOfferingRepository serviceRepository,
-            ProfessionalRepository professionalRepository, BusinessHourRepository businessHourRepository,
+            ProfessionalRepository professionalRepository,
+            ProfessionalHourRepository professionalHourRepository,
+            BusinessHourRepository businessHourRepository,
             AppointmentRepository appointmentRepository, AvailabilityService availabilityService,
             BookingLock bookingLock) {
         this.businessService = businessService;
         this.serviceRepository = serviceRepository;
         this.professionalRepository = professionalRepository;
+        this.professionalHourRepository = professionalHourRepository;
         this.businessHourRepository = businessHourRepository;
         this.appointmentRepository = appointmentRepository;
         this.availabilityService = availabilityService;
@@ -70,9 +78,26 @@ public class BookingService {
     public List<ProfessionalSummaryResponse> professionalsForService(String slug, UUID serviceId) {
         Business business = businessService.requireBySlug(slug);
         requireActiveService(business, serviceId);
+        Map<UUID, List<Integer>> workingDays = workingDaysByProfessional(business.getId());
         return professionalRepository.findActiveByService(business.getId(), serviceId).stream()
-                .map(ProfessionalSummaryResponse::from)
+                .map(professional -> ProfessionalSummaryResponse.from(professional,
+                        workingDays.getOrDefault(professional.getId(), List.of())))
                 .toList();
+    }
+
+    /**
+     * Weekdays each professional works, for the professionals that have a schedule of their
+     * own. The ones missing from the map follow the business hours.
+     */
+    private Map<UUID, List<Integer>> workingDaysByProfessional(UUID businessId) {
+        return professionalHourRepository.findByBusinessIdOrderByDayOfWeekAscStartTimeAsc(businessId)
+                .stream()
+                .collect(Collectors.groupingBy(ProfessionalHour::getProfessionalId,
+                        Collectors.mapping(hour -> hour.getDayOfWeek().getValue(),
+                                Collectors.toUnmodifiableSet())))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey,
+                        entry -> entry.getValue().stream().sorted().toList()));
     }
 
     @Transactional(readOnly = true)

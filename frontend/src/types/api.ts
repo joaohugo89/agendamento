@@ -10,6 +10,8 @@ export interface ServiceResponse {
 export interface ProfessionalSummary {
   id: string
   name: string
+  /** Weekdays the professional works, 1 = Monday .. 7 = Sunday; empty = the business hours. */
+  workingDays: number[]
 }
 
 export interface ProfessionalResponse {
@@ -24,6 +26,18 @@ export interface BusinessHourResponse {
   dayOfWeek: number
   startTime: string
   endTime: string
+}
+
+export interface ProfessionalHourResponse {
+  id: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+}
+
+export interface ProfessionalScheduleResponse {
+  followsBusinessHours: boolean
+  entries: ProfessionalHourResponse[]
 }
 
 export interface PublicBusinessResponse {

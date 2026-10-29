@@ -9,6 +9,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -18,6 +19,8 @@ import com.agendamento.appointment.AppointmentRepository;
 import com.agendamento.business.Business;
 import com.agendamento.catalog.BusinessHourRepository;
 import com.agendamento.catalog.BlockRepository;
+import com.agendamento.catalog.ProfessionalHour;
+import com.agendamento.catalog.ProfessionalHourRepository;
 import com.agendamento.catalog.ServiceOffering;
 import com.agendamento.config.AppProperties;
 
@@ -26,15 +29,17 @@ import com.agendamento.config.AppProperties;
 public class AvailabilityService {
 
     private final BusinessHourRepository businessHourRepository;
+    private final ProfessionalHourRepository professionalHourRepository;
     private final BlockRepository blockRepository;
     private final AppointmentRepository appointmentRepository;
     private final Duration slotInterval;
     private final Clock clock;
 
     public AvailabilityService(BusinessHourRepository businessHourRepository,
-            BlockRepository blockRepository, AppointmentRepository appointmentRepository,
-            AppProperties properties, Clock clock) {
+            ProfessionalHourRepository professionalHourRepository, BlockRepository blockRepository,
+            AppointmentRepository appointmentRepository, AppProperties properties, Clock clock) {
         this.businessHourRepository = businessHourRepository;
+        this.professionalHourRepository = professionalHourRepository;
         this.blockRepository = blockRepository;
         this.appointmentRepository = appointmentRepository;
         this.slotInterval = Duration.ofMinutes(properties.booking().slotIntervalMinutes());
@@ -66,6 +71,17 @@ public class AvailabilityService {
                 .map(hour -> new OpeningPeriod(hour.getStartTime(), hour.getEndTime()))
                 .toList();
 
+        // No row at all means this professional works whenever the business is open; with rows,
+        // only the periods of this weekday count, and an empty day is a day off.
+        List<ProfessionalHour> professionalHours = professionalHourRepository
+                .findByProfessionalIdOrderByDayOfWeekAscStartTimeAsc(professionalId);
+        Optional<List<OpeningPeriod>> professionalPeriods = professionalHours.isEmpty()
+                ? Optional.empty()
+                : Optional.of(professionalHours.stream()
+                        .filter(hour -> hour.getDayOfWeek() == date.getDayOfWeek())
+                        .map(hour -> new OpeningPeriod(hour.getStartTime(), hour.getEndTime()))
+                        .toList());
+
         List<TimeRange> busy = new ArrayList<>();
         appointmentRepository
                 .findActiveOverlapping(business.getId(), professionalId, dayStart, dayEnd)
@@ -75,7 +91,7 @@ public class AvailabilityService {
                 .forEach(block -> busy.add(new TimeRange(block.getStartsAt(), block.getEndsAt())));
 
         return new AvailabilityQuery(date, zone, service.duration(), slotInterval,
-                openingPeriods, List.copyOf(busy), clock.instant());
+                openingPeriods, professionalPeriods, List.copyOf(busy), clock.instant());
     }
 
     /** Local time of an instant in the business zone, for display and for API payloads. */

@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.agendamento.auth.AuthenticatedUser;
 import com.agendamento.catalog.dto.ProfessionalRequest;
 import com.agendamento.catalog.dto.ProfessionalResponse;
+import com.agendamento.catalog.dto.ProfessionalScheduleRequest;
+import com.agendamento.catalog.dto.ProfessionalScheduleResponse;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -28,9 +30,12 @@ import jakarta.validation.Valid;
 public class ProfessionalController {
 
     private final ProfessionalCatalogService service;
+    private final ProfessionalHourService hourService;
 
-    public ProfessionalController(ProfessionalCatalogService service) {
+    public ProfessionalController(ProfessionalCatalogService service,
+            ProfessionalHourService hourService) {
         this.service = service;
+        this.hourService = hourService;
     }
 
     @GetMapping
@@ -48,6 +53,18 @@ public class ProfessionalController {
     public ProfessionalResponse update(@AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable UUID id, @Valid @RequestBody ProfessionalRequest request) {
         return service.update(user.businessId(), id, request);
+    }
+
+    @GetMapping("/{id}/hours")
+    public ProfessionalScheduleResponse hours(@AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID id) {
+        return hourService.get(user.businessId(), id);
+    }
+
+    @PutMapping("/{id}/hours")
+    public ProfessionalScheduleResponse replaceHours(@AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable UUID id, @Valid @RequestBody ProfessionalScheduleRequest request) {
+        return hourService.replace(user.businessId(), id, request);
     }
 
     @DeleteMapping("/{id}")

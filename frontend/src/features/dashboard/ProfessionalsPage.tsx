@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 
@@ -152,6 +153,11 @@ export function ProfessionalsPage() {
                     </p>
                   </div>
                   <div className="flex gap-2">
+                    <Link to={`/painel/profissionais/${professional.id}/horarios`}>
+                      <Button size="sm" variant="secondary">
+                        Horarios
+                      </Button>
+                    </Link>
                     <Button
                       size="sm"
                       variant="secondary"

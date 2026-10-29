@@ -9,6 +9,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -118,6 +119,63 @@ class AvailabilityEngineTest {
     }
 
     @Test
+    @DisplayName("a professional schedule narrows the opening hours to the shift")
+    void professionalShiftNarrowsTheDay() {
+        AvailabilityQuery query = withShift(List.of(period(9, 0, 12, 0)), List.of(period(10, 0, 11, 0)));
+
+        assertThat(AvailabilityEngine.availableSlots(query))
+                .containsExactly(at(10, 0), at(10, 15), at(10, 30));
+    }
+
+    @Test
+    @DisplayName("a professional never works outside the opening hours either")
+    void professionalShiftIsClippedByTheOpeningHours() {
+        AvailabilityQuery query = withShift(List.of(period(9, 0, 10, 0)), List.of(period(8, 0, 18, 0)));
+
+        assertThat(AvailabilityEngine.availableSlots(query))
+                .containsExactly(at(9, 0), at(9, 15), at(9, 30));
+    }
+
+    @Test
+    @DisplayName("a day off for the professional offers no slots even with the business open")
+    void professionalDayOff() {
+        AvailabilityQuery query = withShift(List.of(period(9, 0, 18, 0)), List.of());
+
+        assertThat(AvailabilityEngine.availableSlots(query)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("a shift with no overlap with the opening hours offers no slots")
+    void shiftOutsideTheOpeningHours() {
+        AvailabilityQuery query = withShift(List.of(period(9, 0, 12, 0)), List.of(period(13, 0, 18, 0)));
+
+        assertThat(AvailabilityEngine.availableSlots(query)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("both schedules can have several periods, and only the overlaps are offered")
+    void severalPeriodsOnBothSides() {
+        AvailabilityQuery query = withShift(
+                List.of(period(9, 0, 12, 0), period(13, 0, 18, 0)),
+                List.of(period(11, 0, 14, 0), period(17, 0, 18, 0)));
+
+        assertThat(AvailabilityEngine.availableSlots(query))
+                .containsExactly(at(11, 0), at(11, 15), at(11, 30),
+                        at(13, 0), at(13, 15), at(13, 30),
+                        at(17, 0), at(17, 15), at(17, 30));
+    }
+
+    @Test
+    @DisplayName("no schedule of their own means the professional works the whole opening hours")
+    void noProfessionalScheduleFollowsTheBusiness() {
+        AvailabilityQuery query = query(List.of(period(9, 0, 10, 0)), List.of(), at(0, 0));
+
+        assertThat(query.professionalPeriods()).isEmpty();
+        assertThat(AvailabilityEngine.availableSlots(query))
+                .containsExactly(at(9, 0), at(9, 15), at(9, 30));
+    }
+
+    @Test
     @DisplayName("isSlotAvailable agrees with the offered list")
     void slotAvailability() {
         AvailabilityQuery query = query(List.of(period(9, 0, 10, 0)),
@@ -130,6 +188,11 @@ class AvailabilityEngineTest {
 
     private AvailabilityQuery query(List<OpeningPeriod> periods, List<TimeRange> busy, Instant now) {
         return new AvailabilityQuery(DATE, ZONE, THIRTY_MINUTES, SLOT_INTERVAL, periods, busy, now);
+    }
+
+    private AvailabilityQuery withShift(List<OpeningPeriod> opening, List<OpeningPeriod> shift) {
+        return new AvailabilityQuery(DATE, ZONE, THIRTY_MINUTES, SLOT_INTERVAL, opening,
+                Optional.of(shift), List.of(), at(0, 0));
     }
 
     private OpeningPeriod period(int startHour, int startMinute, int endHour, int endMinute) {

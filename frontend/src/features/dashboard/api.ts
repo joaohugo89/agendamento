@@ -6,6 +6,7 @@ import type {
   BusinessHourResponse,
   BusinessResponse,
   ProfessionalResponse,
+  ProfessionalScheduleResponse,
   ServiceResponse,
 } from '../../types/api'
 
@@ -16,6 +17,7 @@ export const dashboardKeys = {
   services: ['services'] as const,
   professionals: ['professionals'] as const,
   businessHours: ['business-hours'] as const,
+  professionalHours: (professionalId: string) => ['professional-hours', professionalId] as const,
   blocks: ['blocks'] as const,
   agenda: (date: string, professionalId: string | null) => ['agenda', date, professionalId] as const,
 }
@@ -76,6 +78,26 @@ export function updateProfessional(id: string, input: ProfessionalInput): Promis
 
 export function deleteProfessional(id: string): Promise<void> {
   return request<void>(`/api/professionals/${id}`, { ...authenticated, method: 'DELETE' })
+}
+
+export function fetchProfessionalSchedule(id: string): Promise<ProfessionalScheduleResponse> {
+  return request<ProfessionalScheduleResponse>(`/api/professionals/${id}/hours`, authenticated)
+}
+
+export interface ProfessionalScheduleInput {
+  followsBusinessHours: boolean
+  entries: BusinessHourEntry[]
+}
+
+export function replaceProfessionalSchedule(
+  id: string,
+  input: ProfessionalScheduleInput,
+): Promise<ProfessionalScheduleResponse> {
+  return request<ProfessionalScheduleResponse>(`/api/professionals/${id}/hours`, {
+    ...authenticated,
+    method: 'PUT',
+    body: input,
+  })
 }
 
 export function fetchBusinessHours(): Promise<BusinessHourResponse[]> {

@@ -7,9 +7,9 @@ O dono do estabelecimento acompanha a agenda do dia e mantem o catalogo em um pa
 Esta e a versao basica e publica do projeto: poucas funcionalidades, feitas por inteiro e
 funcionando de ponta a ponta.
 
-| Pagina publica | Escolha de horario | Agenda do dia |
-| --- | --- | --- |
-| ![Pagina publica](docs/screenshots/pagina-publica.jpg) | ![Escolha de horario](docs/screenshots/escolha-de-horario.jpg) | ![Agenda do dia](docs/screenshots/agenda-do-dia.jpg) |
+| Pagina publica | Escolha de horario | Agenda do dia | Horario do profissional |
+| --- | --- | --- | --- |
+| ![Pagina publica](docs/screenshots/pagina-publica.jpg) | ![Escolha de horario](docs/screenshots/escolha-de-horario.jpg) | ![Agenda do dia](docs/screenshots/agenda-do-dia.jpg) | ![Horario do profissional](docs/screenshots/horario-do-profissional.jpg) |
 
 ## Funcionalidades
 
@@ -31,6 +31,8 @@ funcionando de ponta a ponta.
 - mudanca de status: `CONFIRMED` para `COMPLETED`, `CANCELLED` ou `NO_SHOW`;
 - CRUD de servicos e de profissionais, incluindo quais servicos cada um realiza;
 - horario de funcionamento por dia da semana, com dia fechado e mais de um periodo por dia;
+- horario proprio por profissional, com dias de folga e mais de um periodo por dia, ou seguindo
+  o horario do estabelecimento;
 - bloqueios por periodo, para um profissional ou para o estabelecimento inteiro.
 
 ## Stack
@@ -61,7 +63,9 @@ docker compose up --build
 - Painel: <http://localhost:5173/login>
 - API e Swagger: <http://localhost:8080/swagger-ui>
 
-Usuario de demonstracao: **demo@barbeariaprime.com** / **demo1234**.
+Usuario de demonstracao: **demo@barbeariaprime.com** / **demo1234**. Nos dados de demonstracao o
+Joao segue o horario da barbearia e o Carlos tem horario proprio, para ver a diferenca na pagina
+publica.
 
 Sem Docker, com um PostgreSQL proprio:
 
@@ -134,10 +138,16 @@ como ultima linha de defesa.
 ### Motor de disponibilidade
 
 A regra vive em `AvailabilityEngine`, uma classe de dominio pura: sem banco, sem relogio do sistema,
-recebendo tudo ja carregado. Horarios livres = periodos de funcionamento do dia, menos os
-agendamentos ativos do profissional, menos os bloqueios do profissional e do estabelecimento, menos
-o que ja passou — sempre considerando a duracao do servico, de modo que um horario so aparece se o
-servico couber inteiro antes do fim do periodo.
+recebendo tudo ja carregado. Horarios livres = periodos em que o profissional pode ser agendado no
+dia, menos os agendamentos ativos dele, menos os bloqueios dele e do estabelecimento, menos o que ja
+passou — sempre considerando a duracao do servico, de modo que um horario so aparece se o servico
+couber inteiro antes do fim do periodo.
+
+Os periodos agendaveis vem do cruzamento de duas agendas. Um profissional sem horario proprio
+atende em todo o funcionamento do estabelecimento; com horario proprio, atende apenas na
+intersecao entre os dois — nunca fora do funcionamento, nunca fora do seu turno. Ter zero linhas em
+`professional_hours` e o estado que significa "segue o estabelecimento", o que evita no banco a
+contradicao entre "segue o funcionamento" e "atende so nestes periodos".
 
 ### API
 
@@ -149,6 +159,7 @@ autenticado, e 401 — nao 403 — quando falta o token.
 
 Flyway, em `backend/src/main/resources/db/migration`, aplicadas no startup. A `V1__init.sql` cria o
 modelo completo, habilita as extensoes `pgcrypto` e `btree_gist` e instala a exclusion constraint.
+A `V2__professional_hours.sql` adiciona o horario proprio de cada profissional.
 O Hibernate roda com `ddl-auto: validate`: o schema e do Flyway.
 
 ## Testes
@@ -158,19 +169,23 @@ cd backend && mvn test      # exige Docker em execucao (Testcontainers)
 cd frontend && npm test
 ```
 
-Backend (24 testes):
+Backend (37 testes):
 
 - **motor de disponibilidade** — dia fechado, varios periodos, servico que nao cabe antes do
   fechamento, agendamento existente, agendamento cancelado liberando o horario, bloqueio cobrindo o
   periodo, horarios passados e resolucao no fuso do estabelecimento;
+- **horario do profissional** — turno que estreita o funcionamento, turno que nao pode ultrapassa-lo,
+  folga do profissional em dia aberto, varios periodos nas duas agendas, e os horarios publicados
+  antes e depois de salvar um turno;
 - **double booking** — teste de integracao com PostgreSQL real via Testcontainers, disparando oito
   requisicoes concorrentes para o mesmo horario: exatamente uma recebe 201 e as demais 409;
 - **isolamento entre tenants** — o estabelecimento A recebe 404 ao ler, alterar ou remover recursos
   do B, e so enxerga as proprias linhas nas listagens;
 - **autenticacao** — rotas protegidas respondem 401 sem token e com token invalido.
 
-Frontend (7 testes): o fluxo publico de ponta a ponta com requisicoes simuladas — inclusive o caso
-em que o horario e tomado entre a escolha e a confirmacao — e a geracao do arquivo `.ics`.
+Frontend (8 testes): o fluxo publico de ponta a ponta com requisicoes simuladas — inclusive o caso
+em que o horario e tomado entre a escolha e a confirmacao e o calendario de um profissional que nao
+atende nos dias abertos — e a geracao do arquivo `.ics`.
 
 > O Docker Engine 29 recusa as chamadas sem versao de API que o docker-java envia por padrao; por
 > isso o `pom.xml` fixa `api.version` para o Testcontainers.
@@ -191,6 +206,7 @@ Documentacao completa e navegavel em `/swagger-ui`.
 | `PATCH` | `/api/appointments/{id}/status` | muda o status do agendamento |
 | `GET` `POST` `PUT` `DELETE` | `/api/services` | catalogo de servicos |
 | `GET` `POST` `PUT` `DELETE` | `/api/professionals` | profissionais e seus servicos |
+| `GET` `PUT` | `/api/professionals/{id}/hours` | horario proprio do profissional |
 | `GET` `PUT` | `/api/business-hours` | horario de funcionamento |
 | `GET` `POST` `PUT` `DELETE` | `/api/blocks` | bloqueios |
 | `GET` `PUT` | `/api/business` | dados do estabelecimento |
@@ -198,7 +214,7 @@ Documentacao completa e navegavel em `/swagger-ui`.
 ## Fora do escopo desta versao
 
 Nao implementado, mas nada na arquitetura impede: refresh token e recuperacao de senha;
-disponibilidade individual por profissional; agendamento sem profissional especifico; notificacoes
+agendamento sem profissional especifico; notificacoes
 por WhatsApp ou e-mail; visao semanal e metricas; busca e filtros avancados; upload de logo; planos
 e pagamentos; dominio personalizado; integracao com Google Calendar; cancelamento pelo proprio
 cliente.
