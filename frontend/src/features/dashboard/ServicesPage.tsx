@@ -24,8 +24,9 @@ const serviceSchema = z.object({
     .string()
     .trim()
     .regex(/^\d+([.,]\d{1,2})?$/, 'Informe o valor, por exemplo 40 ou 40,50'),
-  durationMinutes: z.coerce
-    .number()
+  // The field is registered with valueAsNumber, so the form already hands over a number.
+  durationMinutes: z
+    .number('Informe a duracao')
     .int('Use minutos inteiros')
     .min(5, 'Minimo de 5 minutos')
     .max(600, 'Maximo de 600 minutos'),
@@ -232,7 +233,7 @@ function ServiceForm({ service, saving, onSubmit, onCancel }: ServiceFormProps) 
             htmlFor="durationMinutes"
             error={errors.durationMinutes?.message}
           >
-            <Input id="durationMinutes" type="number" min={5} step={5} {...register('durationMinutes')} />
+            <Input id="durationMinutes" type="number" min={5} step={5} {...register('durationMinutes', { valueAsNumber: true })} />
           </Field>
         </div>
         <label className="flex items-center gap-2 text-sm text-slate-700">

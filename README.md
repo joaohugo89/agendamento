@@ -37,7 +37,7 @@ funcionando de ponta a ponta.
 
 ## Stack
 
-**Backend:** Java 21, Spring Boot 3.3, Spring Security com JWT, Spring Data JPA, PostgreSQL 16,
+**Backend:** Java 21, Spring Boot 3.5, Spring Security com JWT, Spring Data JPA, PostgreSQL 16,
 Flyway, Bean Validation, springdoc-openapi.
 **Frontend:** React 18, TypeScript, Vite, Tailwind CSS 4, React Router, TanStack Query,
 React Hook Form, Zod.

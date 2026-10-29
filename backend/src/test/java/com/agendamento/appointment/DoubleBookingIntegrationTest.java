@@ -72,8 +72,9 @@ class DoubleBookingIntegrationTest extends IntegrationTest {
             }).toList();
         }
 
-        assertThat(statuses).filteredOn(HttpStatus.CREATED::equals).hasSize(1);
-        assertThat(statuses).filteredOn(HttpStatus.CONFLICT::equals).hasSize(CONCURRENT_REQUESTS - 1);
+        assertThat(statuses).filteredOn(status -> status.isSameCodeAs(HttpStatus.CREATED)).hasSize(1);
+        assertThat(statuses).filteredOn(status -> status.isSameCodeAs(HttpStatus.CONFLICT))
+                .hasSize(CONCURRENT_REQUESTS - 1);
         assertThat(appointmentRepository.findActiveOverlapping(tenant.businessId(),
                 tenant.professionalId(), slot, slot.plusSeconds(1))).hasSize(1);
     }
